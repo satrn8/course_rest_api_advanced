@@ -13,7 +13,7 @@ def test_put_v1_account_email():
     login_api = LoginApi(host="http://5.63.153.31:5051")
     mailhog_api = MailhogApi(host="http://5.63.153.31:5025")
 
-    login = "alyona72"
+    login = f"alyona{random.randint(100, 500)}"
     password = "qwerty12345"
     email = f'{login}@mail.ru'
 
@@ -29,8 +29,8 @@ def test_put_v1_account_email():
 
     # Получить письма из почтового сервера
     response = mailhog_api.get_api_v2_messages()
-    print(response.status_code)
-    print(response.text)
+    # print(response.status_code)
+    # print(response.text)
     assert response.status_code == 200, f"Письма не были получены"
 
     # Получить активационный токен
@@ -55,7 +55,7 @@ def test_put_v1_account_email():
     assert response.status_code == 200, f"Пользователь не смог авторизоваться"
 
     # Смена email
-    new_email = f"{login}{random.randint(100, 1000)}@mail.ru"
+    new_email = f"{login}{random.randint(500, 1000)}@mail.ru"
     json_data = {
         'login': login,
         'password': password,
@@ -65,6 +65,34 @@ def test_put_v1_account_email():
     print(response.status_code)
     print(response.text)
     assert response.status_code == 200, f"Пользователь не смог изменить почту"
+
+    # Авторизация после смены email
+    json_data = {
+        'login': login,
+        'password': password,
+        'rememberMe': True
+    }
+    response = login_api.post_v1_account_login(json_data=json_data)
+    print(response.status_code)
+    print(response.text)
+    assert response.status_code == 403, f"Пользователь смог авторизоваться"
+
+    # Активация токена
+    response = account_api.put_v1_account_token(token=token)
+    print(response.status_code)
+    print(response.text)
+    assert response.status_code == 200, f"Пользователь не был активирован"
+
+    # Авторизация после активации токена
+    json_data = {
+        'login': login,
+        'password': password,
+        'rememberMe': True
+    }
+    response = login_api.post_v1_account_login(json_data=json_data)
+    print(response.status_code)
+    print(response.text)
+    assert response.status_code == 200, f"Пользователь не смог авторизоваться"
 
 
 def get_activation_token_by_login(login, response):
