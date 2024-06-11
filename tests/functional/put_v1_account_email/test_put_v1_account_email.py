@@ -23,14 +23,10 @@ def test_put_v1_account_email():
         'password': password
     }
     response = account_api.post_v1_account(json_data=json_data)
-    print(response.status_code)
-    pprint.pprint(response.text)
     assert response.status_code == 201, f"Пользователь не был создан {response.json()}"
 
     # Получить письма из почтового сервера
     response = mailhog_api.get_api_v2_messages()
-    # print(response.status_code)
-    # print(response.text)
     assert response.status_code == 200, f"Письма не были получены"
 
     # Получить активационный токен
@@ -39,8 +35,6 @@ def test_put_v1_account_email():
 
     # Активация пользователя
     response = account_api.put_v1_account_token(token=token)
-    print(response.status_code)
-    print(response.text)
     assert response.status_code == 200, f"Пользователь не был активирован"
 
     # Авторизоваться
@@ -50,8 +44,6 @@ def test_put_v1_account_email():
         'rememberMe': True
     }
     response = login_api.post_v1_account_login(json_data=json_data)
-    print(response.status_code)
-    print(response.text)
     assert response.status_code == 200, f"Пользователь не смог авторизоваться"
 
     # Смена email
@@ -62,8 +54,6 @@ def test_put_v1_account_email():
         'email': new_email
     }
     response = account_api.put_v1_account_email(json_data=json_data)
-    print(response.status_code)
-    print(response.text)
     assert response.status_code == 200, f"Пользователь не смог изменить почту"
 
     # Авторизация после смены email
@@ -73,14 +63,10 @@ def test_put_v1_account_email():
         'rememberMe': True
     }
     response = login_api.post_v1_account_login(json_data=json_data)
-    print(response.status_code)
-    print(response.text)
     assert response.status_code == 403, f"Пользователь смог авторизоваться"
 
     # Активация токена
     response = account_api.put_v1_account_token(token=token)
-    print(response.status_code)
-    print(response.text)
     assert response.status_code == 200, f"Пользователь не был активирован"
 
     # Авторизация после активации токена
@@ -90,8 +76,6 @@ def test_put_v1_account_email():
         'rememberMe': True
     }
     response = login_api.post_v1_account_login(json_data=json_data)
-    print(response.status_code)
-    print(response.text)
     assert response.status_code == 200, f"Пользователь не смог авторизоваться"
 
 
