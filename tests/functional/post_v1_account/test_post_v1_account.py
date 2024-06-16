@@ -29,7 +29,7 @@ def test_post_v1_account():
     mailhog = MailHogApi(configuration=mailhog_configuration)
     account_helper = AccountHelper(dm_account_api=account, mailhog=mailhog)
 
-    login = f"alyona{random.randint(700, 1500)}"
+    login = f"alyona{random.randint(2000, 3000)}"
     password = "qwerty12345"
     email = f'{login}@mail.ru'
 
