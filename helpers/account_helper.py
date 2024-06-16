@@ -4,6 +4,12 @@ import time
 from services.dm_api_account import DMApiAccount
 from services.api_mailhog import MailHogApi
 from json import loads
+from retrying import retry
+
+
+def retry_if_result_none(result):
+    """Return True if we should retry (in this case when result is None), False otherwise"""
+    return result is None
 
 
 def retrier(function):
@@ -66,10 +72,7 @@ class AccountHelper:
         response = self.dm_account_api.account_api.put_v1_account_email(json_data=json_data)
         assert response.status_code == 200, f"Пользователь не смог изменить почту"
 
-        response = self.mailhog.mailhog_api.get_api_v2_messages()
-        assert response.status_code == 200, f"Письма не были получены"
-
-        token = self.activation_new_token(login, response, new_email)
+        token = self.activation_new_token(login, new_email)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
@@ -95,7 +98,7 @@ class AccountHelper:
         token = self.get_activation_token_by_login(login=login)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
 
-    @retrier
+    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
     def get_activation_token_by_login(self, login):
         token = None
         response = self.mailhog.mailhog_api.get_api_v2_messages()
@@ -107,9 +110,10 @@ class AccountHelper:
                 print(f"старый токен {token}")
         return token
 
-    @staticmethod
-    def activation_new_token(login, response, email):
+    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
+    def activation_new_token(self, login, email):
         new_token = None
+        response = self.mailhog.mailhog_api.get_api_v2_messages()
         for item in response.json()["items"]:
             user_data = loads(item["Content"]["Body"])
             new_email = item["Content"]["Headers"]["To"][0]
