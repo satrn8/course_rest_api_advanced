@@ -136,12 +136,11 @@ class AccountHelper:
 
     def delete_account_login(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
-        return response
+        return response == 204, "Пользователь не разлогинен"
 
     def delete_account_login_all(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login_all(**kwargs)
         assert response == 204, "Пользователь не разлогинен на всех устройствах"
-
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
     def get_activation_token_by_login(self, login):
@@ -152,7 +151,6 @@ class AccountHelper:
             user_login = user_data["Login"]
             if user_login == login:
                 token = user_data["ConfirmationLinkUrl"].split("/")[-1]
-                # print(f"старый токен {token}")
         return token
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
@@ -164,7 +162,6 @@ class AccountHelper:
             new_email = item["Content"]["Headers"]["To"][0]
             if new_email == email:
                 new_token = user_data["ConfirmationLinkUrl"].split("/")[-1]
-                print(f"новый токен {new_token}")
         return new_token
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
@@ -177,5 +174,4 @@ class AccountHelper:
             sub_let = f"=?utf-8?b?0J/QvtC00YLQstC10YDQttC00LXQvdC40LUg0YHQsdGA0L7RgdCw?= =?utf-8?b?INC/0LDRgNC+0LvRjyDQvdCwIERNLkFNINC00LvRjw==?= {login}"
             if sub == sub_let:
                 token = user_data["ConfirmationLinkUri"].split("/")[-1]
-                print(token)
         return token
