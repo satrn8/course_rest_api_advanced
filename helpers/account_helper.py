@@ -35,18 +35,17 @@ class AccountHelper:
         self.mailhog = mailhog
 
     def auth_client(self, login: str, password: str):
-
-        response = self.dm_account_api.login_api.post_v1_account_login(
-            json_data={
-                "login": login,
-                "password": password
-            }
-        )
+        json_data = {
+            "login": login,
+            "password": password
+        }
+        response = self.dm_account_api.login_api.post_v1_account_login(json_data=json_data)
         token = {
             "x-dm-auth-token": response.headers["x-dm-auth-token"]
         }
         self.dm_account_api.account_api.set_headers(token)
         self.dm_account_api.login_api.set_headers(token)
+        return response
 
     def register_new_user(self, login: str, password: str, email: str):
         json_data = {
@@ -111,6 +110,38 @@ class AccountHelper:
         # Получить активационный токен
         token = self.get_activation_token_by_login(login=login)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
+        return token
+
+    def reset_user_password(self, login: str, email: str, **kwargs):
+        json_data = {
+            'login': login,
+            'email': email
+        }
+        response = self.dm_account_api.account_api.post_v1_account_password(json_data=json_data)
+        return response
+
+    def change_token(self, login: str):
+        token = self.reset_password(login=login)
+        return token
+
+    def change_user_password(self, login: str, token: str, oldPassword: str, newPassword: str, **kwargs):
+        json_data = {
+            'login': login,
+            'token': token,
+            'oldPassword': oldPassword,
+            'newPassword': newPassword
+        }
+        response = self.dm_account_api.account_api.put_v1_account_password(json_data=json_data)
+        return response
+
+    def delete_account_login(self, **kwargs):
+        response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
+        return response
+
+    def delete_account_login_all(self, **kwargs):
+        response = self.dm_account_api.login_api.delete_v1_account_login_all(**kwargs)
+        assert response == 204, "Пользователь не разлогинен на всех устройствах"
+
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
     def get_activation_token_by_login(self, login):
@@ -121,7 +152,7 @@ class AccountHelper:
             user_login = user_data["Login"]
             if user_login == login:
                 token = user_data["ConfirmationLinkUrl"].split("/")[-1]
-                print(f"старый токен {token}")
+                # print(f"старый токен {token}")
         return token
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
@@ -135,3 +166,16 @@ class AccountHelper:
                 new_token = user_data["ConfirmationLinkUrl"].split("/")[-1]
                 print(f"новый токен {new_token}")
         return new_token
+
+    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
+    def reset_password(self, login):
+        token = None
+        response = self.mailhog.mailhog_api.get_api_v2_messages()
+        for item in response.json()["items"]:
+            user_data = loads(item["Content"]["Body"])
+            sub = item['Content']['Headers']['Subject'][0]
+            sub_let = f"=?utf-8?b?0J/QvtC00YLQstC10YDQttC00LXQvdC40LUg0YHQsdGA0L7RgdCw?= =?utf-8?b?INC/0LDRgNC+0LvRjyDQvdCwIERNLkFNINC00LvRjw==?= {login}"
+            if sub == sub_let:
+                token = user_data["ConfirmationLinkUri"].split("/")[-1]
+                print(token)
+        return token
