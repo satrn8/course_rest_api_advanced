@@ -85,7 +85,7 @@ class AccountHelper:
         response = self.dm_account_api.account_api.put_v1_account_email(json_data=json_data)
         assert response.status_code == 200, f"Пользователь не смог изменить почту"
 
-        token = self.activation_new_token(login, new_email)
+        token = self.get_activation_new_token_by_login(login, new_email)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
@@ -93,24 +93,13 @@ class AccountHelper:
 
         return response
 
-    def account_token(self, login: str, password: str, email: str):
-        json_data = {
-            'login': login,
-            'email': email,
-            'password': password
-        }
-
-        response = self.dm_account_api.account_api.post_v1_account(json_data=json_data)
-        assert response.status_code == 201, f"Пользователь не был создан {response.json()}"
-
-        # Получить письма из почтового сервера
-        response = self.mailhog.mailhog_api.get_api_v2_messages()
-        assert response.status_code == 200, f"Письма не были получены"
-
+    def get_account_token(self, login: str):
         # Получить активационный токен
         token = self.get_activation_token_by_login(login=login)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
-        return token
+
+        response = self.dm_account_api.account_api.put_v1_account_token(token=token)
+        assert response.status_code == 200, f"Пользователь не был активирован"
 
     def reset_user_password(self, login: str, email: str, **kwargs):
         json_data = {
@@ -120,11 +109,8 @@ class AccountHelper:
         response = self.dm_account_api.account_api.post_v1_account_password(json_data=json_data)
         return response
 
-    def change_token(self, login: str):
-        token = self.reset_password(login=login)
-        return token
-
     def change_user_password(self, login: str, token: str, oldPassword: str, newPassword: str, **kwargs):
+        token = self.get_reset_token_by_login(login=login)
         json_data = {
             'login': login,
             'token': token,
@@ -154,7 +140,7 @@ class AccountHelper:
         return token
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
-    def activation_new_token(self, login, email):
+    def get_activation_new_token_by_login(self, login, email):
         new_token = None
         response = self.mailhog.mailhog_api.get_api_v2_messages()
         for item in response.json()["items"]:
@@ -165,13 +151,14 @@ class AccountHelper:
         return new_token
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
-    def reset_password(self, login):
+    def get_reset_token_by_login(self, login):
         token = None
         response = self.mailhog.mailhog_api.get_api_v2_messages()
         for item in response.json()["items"]:
             user_data = loads(item["Content"]["Body"])
-            sub = item['Content']['Headers']['Subject'][0]
-            sub_let = f"=?utf-8?b?0J/QvtC00YLQstC10YDQttC00LXQvdC40LUg0YHQsdGA0L7RgdCw?= =?utf-8?b?INC/0LDRgNC+0LvRjyDQvdCwIERNLkFNINC00LvRjw==?= {login}"
-            if sub == sub_let:
-                token = user_data["ConfirmationLinkUri"].split("/")[-1]
+            user_login = user_data["Login"]
+            if user_login == login:
+                user_data_dict = dict(user_data)
+                if user_data_dict.get("ConfirmationLinkUri"):
+                    token = str(user_data_dict.get("ConfirmationLinkUri")).split("/")[-1]
         return token
