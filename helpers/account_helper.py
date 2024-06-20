@@ -73,7 +73,7 @@ class AccountHelper:
         return response
 
     def change_email(self, login: str, password: str, email: str):
-        email = f"{email}_new"
+        email = f"new_{email}"
         json_data = {
             'login': login,
             'password': password,
