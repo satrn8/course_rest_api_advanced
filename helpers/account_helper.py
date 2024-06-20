@@ -56,10 +56,8 @@ class AccountHelper:
 
         response = self.dm_account_api.account_api.post_v1_account(json_data=json_data)
         assert response.status_code == 201, f"Пользователь не был создан {response.json()}"
-
         token = self.get_activation_token_by_login(login=login)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
-
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
         assert response.status_code == 200, f"Пользователь не был активирован"
         return response
@@ -75,22 +73,18 @@ class AccountHelper:
         return response
 
     def change_email(self, login: str, password: str, email: str):
-        new_email = f"{login}{random.randint(500, 1000)}@mail.ru"
+        email = f"{email}_new"
         json_data = {
             'login': login,
             'password': password,
-            'email': new_email
+            'email': email
         }
-
         response = self.dm_account_api.account_api.put_v1_account_email(json_data=json_data)
         assert response.status_code == 200, f"Пользователь не смог изменить почту"
-
-        token = self.get_activation_new_token_by_login(login, new_email)
+        token = self.get_activation_new_token_by_login(login, email)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
-
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
         assert response.status_code == 200, f"Пользователь не был активирован"
-
         return response
 
     def get_account_token(self, login: str):
@@ -109,24 +103,47 @@ class AccountHelper:
         response = self.dm_account_api.account_api.post_v1_account_password(json_data=json_data)
         return response
 
-    def change_user_password(self, login: str, token: str, oldPassword: str, newPassword: str, **kwargs):
+    def change_user_password(self, login: str, email: str, password: str, new_password: str, **kwargs):
+        json_data = {
+            'login': login,
+            'email': email,
+            'password': password
+        }
+        response = self.dm_account_api.account_api.post_v1_account(json_data=json_data)
+        assert response.status_code == 201, f"Пользователь не был создан {response.json()}"
+        token = self.get_activation_token_by_login(login=login)
+        assert token is not None, f"Токен для пользователя {login}, не был получен"
+        response = self.dm_account_api.account_api.put_v1_account_token(token=token)
+        assert response.status_code == 200, f"Пользователь не был активирован"
+
+        headers = {
+            'X-Dm-Auth-Token': token
+        }
+        response = self.reset_user_password(login=login, email=email, headers=headers)
+        assert response.status_code == 200, f"Пароль не был сброшен"
+
         token = self.get_reset_token_by_login(login=login)
+        headers = {
+            'X-Dm-Auth-Token': token
+        }
         json_data = {
             'login': login,
             'token': token,
-            'oldPassword': oldPassword,
-            'newPassword': newPassword
+            'oldPassword': password,
+            'newPassword': new_password
         }
-        response = self.dm_account_api.account_api.put_v1_account_password(json_data=json_data)
-        return response
+        response = self.dm_account_api.account_api.put_v1_account_password(json_data=json_data, headers=headers)
+        assert response.status_code == 200, "Пароль не был изменен"
+        response = self.user_login(login=login, password=new_password, remember_me=True)
+        assert response.status_code == 200, f"Пользователь не смог авторизоваться"
 
     def delete_account_login(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
-        return response == 204, "Пользователь не разлогинен"
+        return response.status_code == 204, "Пользователь не разлогинен"
 
     def delete_account_login_all(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login_all(**kwargs)
-        assert response == 204, "Пользователь не разлогинен на всех устройствах"
+        assert response.status_code == 204, "Пользователь не разлогинен на всех устройствах"
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
     def get_activation_token_by_login(self, login):
