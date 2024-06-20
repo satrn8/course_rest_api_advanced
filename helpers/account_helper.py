@@ -73,7 +73,6 @@ class AccountHelper:
         return response
 
     def change_email(self, login: str, password: str, email: str):
-        email = f"new_{email}"
         json_data = {
             'login': login,
             'password': password,
@@ -134,8 +133,6 @@ class AccountHelper:
         }
         response = self.dm_account_api.account_api.put_v1_account_password(json_data=json_data, headers=headers)
         assert response.status_code == 200, "Пароль не был изменен"
-        response = self.user_login(login=login, password=new_password, remember_me=True)
-        assert response.status_code == 200, f"Пользователь не смог авторизоваться"
 
     def delete_account_login(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)

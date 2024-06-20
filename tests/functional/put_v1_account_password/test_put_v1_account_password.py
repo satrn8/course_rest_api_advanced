@@ -4,3 +4,4 @@ def test_put_v1_account_password(auth_account_helper, prepare_user, account_help
     email = prepare_user.email
     new_password = "ytrewq54321"
     account_helper.change_user_password(login=login, email=email, password=password, new_password=new_password)
+    account_helper.user_login(login=login, password=new_password)
