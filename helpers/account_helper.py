@@ -72,7 +72,7 @@ class AccountHelper:
         assert response.status_code == 200, f"Пользователь не смог авторизоваться"
         return response
 
-    def change_email(self, login: str, password: str, email: str):
+    def change_email(self, login: str, email: str, password: str):
         json_data = {
             'login': login,
             'password': password,
