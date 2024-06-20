@@ -51,13 +51,13 @@ def auth_account_helper(mailhog_api):
     account = DMApiAccount(configuration=dm_api_configuration)
     account_helper = AccountHelper(dm_account_api=account, mailhog=mailhog_api)
     account_helper.auth_client(
-        login="alyona19_06_2024_00_52_25",
+        login="alyona20_06_2024_21_01_21",
         password="qwerty12345"
     )
     return account_helper
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def prepare_user():
     now = datetime.datetime.now()
     data = now.strftime("%d_%m_%Y_%H_%M_%S")
