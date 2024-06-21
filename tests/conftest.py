@@ -45,7 +45,7 @@ def account_helper(account_api, mailhog_api):
     return account_helper
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def auth_account_helper(mailhog_api, prepare_user):
     dm_api_configuration = DmApiConfiguration(host="http://5.63.153.31:5051", disable_log=False)
     account = DMApiAccount(configuration=dm_api_configuration)
