@@ -70,7 +70,7 @@ class AccountHelper:
         }
         response = self.dm_account_api.login_api.post_v1_account_login(json_data=json_data)
         assert response.status_code == 200, f"Пользователь не смог авторизоваться"
-        return response
+        # return response
 
     def change_email(self, login: str, email: str, password: str):
         json_data = {
@@ -92,6 +92,7 @@ class AccountHelper:
         assert token is not None, f"Токен для пользователя {login}, не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
+        print(f"Пользователь был активирован")
         assert response.status_code == 200, f"Пользователь не был активирован"
 
     def reset_user_password(self, login: str, email: str, **kwargs):
@@ -103,24 +104,13 @@ class AccountHelper:
         return response
 
     def change_user_password(self, login: str, email: str, password: str, new_password: str, **kwargs):
-        json_data = {
-            'login': login,
-            'email': email,
-            'password': password
-        }
-        response = self.dm_account_api.account_api.post_v1_account(json_data=json_data)
-        assert response.status_code == 201, f"Пользователь не был создан {response.json()}"
-        token = self.get_activation_token_by_login(login=login)
+        token = self.get_token_by_login(email=email)
         assert token is not None, f"Токен для пользователя {login}, не был получен"
-        response = self.dm_account_api.account_api.put_v1_account_token(token=token)
-        assert response.status_code == 200, f"Пользователь не был активирован"
-
         headers = {
             'X-Dm-Auth-Token': token
         }
         response = self.reset_user_password(login=login, email=email, headers=headers)
         assert response.status_code == 200, f"Пароль не был сброшен"
-
         token = self.get_reset_token_by_login(login=login)
         headers = {
             'X-Dm-Auth-Token': token
@@ -175,4 +165,17 @@ class AccountHelper:
                 user_data_dict = dict(user_data)
                 if user_data_dict.get("ConfirmationLinkUri"):
                     token = str(user_data_dict.get("ConfirmationLinkUri")).split("/")[-1]
+        return token
+
+    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
+    def get_token_by_login(self, email):
+        token = None
+        response = self.mailhog.mailhog_api.get_api_v2_messages()
+        for item in response.json()["items"]:
+            user_data = loads(item["Content"]["Body"])
+            email_letter = item["Content"]["Headers"]["To"][0]
+            if email_letter == email:
+                user_data_dict = dict(user_data)
+                if user_data_dict.get("ConfirmationLinkUrl"):
+                    token = str(user_data_dict.get("ConfirmationLinkUrl")).split("/")[-1]
         return token
