@@ -59,7 +59,7 @@ def auth_account_helper(mailhog_api, prepare_user):
     return account_helper
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def prepare_user():
     now = datetime.datetime.now()
     data = now.strftime("%d_%m_%Y_%H_%M_%S")
