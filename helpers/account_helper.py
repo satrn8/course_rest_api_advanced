@@ -70,7 +70,7 @@ class AccountHelper:
         }
         response = self.dm_account_api.login_api.post_v1_account_login(json_data=json_data)
         assert response.status_code == 200, f"Пользователь не смог авторизоваться"
-        # return response
+        return response
 
     def change_email(self, login: str, email: str, password: str):
         json_data = {
@@ -103,26 +103,26 @@ class AccountHelper:
         response = self.dm_account_api.account_api.post_v1_account_password(json_data=json_data)
         return response
 
-    def change_user_password(self, login: str, email: str, password: str, new_password: str, **kwargs):
-        token = self.get_token_by_login(email=email)
-        assert token is not None, f"Токен для пользователя {login}, не был получен"
-        headers = {
-            'X-Dm-Auth-Token': token
-        }
-        response = self.reset_user_password(login=login, email=email, headers=headers)
-        assert response.status_code == 200, f"Пароль не был сброшен"
-        token = self.get_reset_token_by_login(login=login)
-        headers = {
-            'X-Dm-Auth-Token': token
-        }
-        json_data = {
-            'login': login,
-            'token': token,
-            'oldPassword': password,
-            'newPassword': new_password
-        }
-        response = self.dm_account_api.account_api.put_v1_account_password(json_data=json_data, headers=headers)
-        assert response.status_code == 200, "Пароль не был изменен"
+    def change_user_password(self, login: str, email: str, old_password: str, new_password: str):
+        token = self.user_login(login=login, password=old_password)
+        self.dm_account_api.account_api.post_v1_account_password(
+            json_data={
+                "login": login,
+                "email": email
+            },
+            headers={
+                "x-dm-auth-token": token.headers["x-dm-auth-token"]
+            },
+        )
+        token = self.get_token(login=login, token_type="reset")
+        self.dm_account_api.account_api.put_v1_account_password(
+            json_data={
+                "login": login,
+                "oldPassword": old_password,
+                "newPassword": new_password,
+                "token": token
+            }
+        )
 
     def delete_account_login(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
@@ -154,28 +154,17 @@ class AccountHelper:
                 new_token = user_data["ConfirmationLinkUrl"].split("/")[-1]
         return new_token
 
-    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
-    def get_reset_token_by_login(self, login):
+    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none, wait_fixed=1000)
+    def get_token(self, login, token_type="activation"):
         token = None
         response = self.mailhog.mailhog_api.get_api_v2_messages()
         for item in response.json()["items"]:
             user_data = loads(item["Content"]["Body"])
             user_login = user_data["Login"]
-            if user_login == login:
-                user_data_dict = dict(user_data)
-                if user_data_dict.get("ConfirmationLinkUri"):
-                    token = str(user_data_dict.get("ConfirmationLinkUri")).split("/")[-1]
-        return token
-
-    @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none)
-    def get_token_by_login(self, email):
-        token = None
-        response = self.mailhog.mailhog_api.get_api_v2_messages()
-        for item in response.json()["items"]:
-            user_data = loads(item["Content"]["Body"])
-            email_letter = item["Content"]["Headers"]["To"][0]
-            if email_letter == email:
-                user_data_dict = dict(user_data)
-                if user_data_dict.get("ConfirmationLinkUrl"):
-                    token = str(user_data_dict.get("ConfirmationLinkUrl")).split("/")[-1]
+            activation_token = user_data.get("ConfirmationLinkUrl")
+            reset_token = user_data.get("ConfirmationLinkUri")
+            if user_login == login and activation_token and token_type == "activation":
+                token = activation_token.split("/")[-1]
+            elif user_login == login and reset_token and token_type == "reset":
+                token = reset_token.split("/")[-1]
         return token
