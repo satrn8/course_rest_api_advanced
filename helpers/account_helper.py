@@ -124,6 +124,7 @@ class AccountHelper:
             }
         )
 
+
     def delete_account_login(self, **kwargs):
         response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
         return response.status_code == 204, "Пользователь не разлогинен"
