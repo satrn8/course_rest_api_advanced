@@ -39,7 +39,8 @@ class AccountHelper:
         self.dm_account_api = dm_account_api
         self.mailhog = mailhog
 
-    def auth_client(self, login: str, password: str, remember_me: bool = True, validate_response=False):
+    def auth_client(self, login: str, password: str, remember_me: bool = True, validate_response=False,
+                    validate_headers=False):
         login_credentials = LoginCredentials(
             login=login,
             password=password,
@@ -50,6 +51,8 @@ class AccountHelper:
         token = {
             "x-dm-auth-token": response.headers["x-dm-auth-token"]
         }
+        if validate_headers:
+            assert response.headers["x-dm-auth-token"], "Токен для пользователя не был получен"
         self.dm_account_api.account_api.set_headers(token)
         self.dm_account_api.login_api.set_headers(token)
 
@@ -65,7 +68,8 @@ class AccountHelper:
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
         return response
 
-    def user_login(self, login: str, password: str, remember_me: bool = True, validate_response=False):
+    def user_login(self, login: str, password: str, remember_me: bool = True, validate_response=False,
+                   validate_headers=False):
         login_credentials = LoginCredentials(
             login=login,
             password=password,
@@ -73,6 +77,9 @@ class AccountHelper:
         )
         response = self.dm_account_api.login_api.post_v1_account_login(login_credentials=login_credentials,
                                                                        validate_response=validate_response)
+        if validate_headers:
+            assert response.headers["x-dm-auth-token"], "Токен для пользователя не был получен"
+            # assert response.status_code == 200, "Пользователь не смог авторизоваться"
         return response
 
     def change_email(self, login: str, email: str, password: str):
