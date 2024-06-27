@@ -1,37 +1,28 @@
-import pprint
-import random
-import structlog
+import datetime
 
-from json import loads
-
-from helpers.account_helper import AccountHelper
-from rest_client.configuration import Configuration as MailhogConfiguration
-from rest_client.configuration import Configuration as DmApiConfiguration
-from services.dm_api_account import DMApiAccount
-from services.api_mailhog import MailHogApi
-
-structlog.configure(
-    processors=[
-        structlog.processors.JSONRenderer(
-            indent=4,
-            ensure_ascii=True,
-            # sort_keys=True
-        )
-    ]
-)
+from hamcrest import assert_that, has_property, has_properties, starts_with, all_of, instance_of, equal_to
 
 
-def test_post_v1_account():
-    mailhog_configuration = MailhogConfiguration(host="http://5.63.153.31:5025")
-    dm_api_configuration = DmApiConfiguration(host="http://5.63.153.31:5051", disable_log=False)
-
-    account = DMApiAccount(configuration=dm_api_configuration)
-    mailhog = MailHogApi(configuration=mailhog_configuration)
-    account_helper = AccountHelper(dm_account_api=account, mailhog=mailhog)
-
-    login = f"alyona{random.randint(2000, 3000)}"
-    password = "qwerty12345"
-    email = f'{login}@mail.ru'
-
+def test_post_v1_account(account_helper, prepare_user):
+    login = prepare_user.login
+    password = prepare_user.password
+    email = prepare_user.email
     account_helper.register_new_user(login=login, password=password, email=email)
-    account_helper.user_login(login=login, password=password)
+    response = account_helper.user_login(login=login, password=password, validate_response=True)
+    assert_that(
+        response, all_of(
+            has_property("resource", has_property("login", starts_with("alyona"))),
+            has_property("resource", has_property("registration", instance_of(datetime.datetime))),
+            has_property(
+                "resource", has_properties({
+                    "rating": has_properties({
+                        "enabled": equal_to(True),
+                        "quality": equal_to(0),
+                        "quantity": equal_to(0)
+                    })
+                })
+            )
+        )
+    )
+
+    print(response)
